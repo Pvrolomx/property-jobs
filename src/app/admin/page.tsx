@@ -12,8 +12,8 @@ interface Job {
   status: string;
 }
 
-interface Property { id: string; name: string; }
-interface Worker { id: string; name: string; }
+interface Property { id: string; name: string; address: string; client?: { name: string } }
+interface Worker { id: string; name: string; phone: string }
 interface JobType { id: string; name: string; checklistTemplate: string; }
 
 export default function AdminPage() {
@@ -22,12 +22,16 @@ export default function AdminPage() {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [jobTypes, setJobTypes] = useState<JobType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    propertyId: '', workerId: '', jobTypeId: '', datetime: '', notes: ''
-  });
+  
+  const [showJobForm, setShowJobForm] = useState(false);
+  const [showPropertyForm, setShowPropertyForm] = useState(false);
+  const [showWorkerForm, setShowWorkerForm] = useState(false);
+  
+  const [jobData, setJobData] = useState({ propertyId: '', workerId: '', jobTypeId: '', datetime: '', notes: '' });
+  const [propertyData, setPropertyData] = useState({ name: '', address: '', clientName: '', clientPhone: '', notes: '' });
+  const [workerData, setWorkerData] = useState({ name: '', phone: '' });
 
-  useEffect(() => {
+  const loadData = () => {
     Promise.all([
       fetch('/api/jobs').then(r => r.json()),
       fetch('/api/properties').then(r => r.json()),
@@ -40,23 +44,48 @@ export default function AdminPage() {
       setJobTypes(typesData);
       setLoading(false);
     });
-  }, []);
+  };
+
+  useEffect(() => { loadData(); }, []);
 
   const createJob = async (e: React.FormEvent) => {
     e.preventDefault();
-    const selectedType = jobTypes.find(t => t.id === formData.jobTypeId);
+    const selectedType = jobTypes.find(t => t.id === jobData.jobTypeId);
     const res = await fetch('/api/jobs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...formData,
-        checklist: selectedType?.checklistTemplate || '[]'
-      }),
+      body: JSON.stringify({ ...jobData, checklist: selectedType?.checklistTemplate || '[]' }),
     });
     const newJob = await res.json();
     setJobs([newJob, ...jobs]);
-    setShowForm(false);
-    setFormData({ propertyId: '', workerId: '', jobTypeId: '', datetime: '', notes: '' });
+    setShowJobForm(false);
+    setJobData({ propertyId: '', workerId: '', jobTypeId: '', datetime: '', notes: '' });
+  };
+
+  const createProperty = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch('/api/properties', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(propertyData),
+    });
+    const newProp = await res.json();
+    setProperties([...properties, newProp]);
+    setShowPropertyForm(false);
+    setPropertyData({ name: '', address: '', clientName: '', clientPhone: '', notes: '' });
+  };
+
+  const createWorker = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch('/api/workers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(workerData),
+    });
+    const newWorker = await res.json();
+    setWorkers([...workers, newWorker]);
+    setShowWorkerForm(false);
+    setWorkerData({ name: '', phone: '' });
   };
 
   const statusColors: Record<string, string> = {
@@ -73,40 +102,93 @@ export default function AdminPage() {
       <div className="max-w-6xl mx-auto p-6">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Dashboard Admin</h1>
-          <div className="flex gap-4">
-            <button onClick={() => setShowForm(!showForm)} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-              + Nuevo Job
-            </button>
-            <Link href="/" className="text-blue-600 hover:underline py-2">← Inicio</Link>
-          </div>
+          <Link href="/" className="text-blue-600 hover:underline">← Inicio</Link>
         </div>
 
-        {showForm && (
+        {/* Action Buttons */}
+        <div className="flex gap-3 mb-6">
+          <button onClick={() => setShowJobForm(!showJobForm)} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">+ Job</button>
+          <button onClick={() => setShowPropertyForm(!showPropertyForm)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">+ Propiedad</button>
+          <button onClick={() => setShowWorkerForm(!showWorkerForm)} className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">+ Trabajadora</button>
+        </div>
+
+        {/* Job Form */}
+        {showJobForm && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4">Crear Job</h2>
             <form onSubmit={createJob} className="grid grid-cols-2 gap-4">
-              <select required value={formData.propertyId} onChange={e => setFormData({...formData, propertyId: e.target.value})} className="border rounded p-2">
+              <select required value={jobData.propertyId} onChange={e => setJobData({...jobData, propertyId: e.target.value})} className="border rounded p-2">
                 <option value="">Seleccionar Propiedad</option>
                 {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-              <select required value={formData.workerId} onChange={e => setFormData({...formData, workerId: e.target.value})} className="border rounded p-2">
+              <select required value={jobData.workerId} onChange={e => setJobData({...jobData, workerId: e.target.value})} className="border rounded p-2">
                 <option value="">Seleccionar Trabajadora</option>
                 {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
-              <select required value={formData.jobTypeId} onChange={e => setFormData({...formData, jobTypeId: e.target.value})} className="border rounded p-2">
+              <select required value={jobData.jobTypeId} onChange={e => setJobData({...jobData, jobTypeId: e.target.value})} className="border rounded p-2">
                 <option value="">Tipo de Job</option>
                 {jobTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
-              <input type="datetime-local" required value={formData.datetime} onChange={e => setFormData({...formData, datetime: e.target.value})} className="border rounded p-2" />
-              <textarea placeholder="Notas (opcional)" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="border rounded p-2 col-span-2" />
+              <input type="datetime-local" required value={jobData.datetime} onChange={e => setJobData({...jobData, datetime: e.target.value})} className="border rounded p-2" />
+              <textarea placeholder="Notas (opcional)" value={jobData.notes} onChange={e => setJobData({...jobData, notes: e.target.value})} className="border rounded p-2 col-span-2" />
               <div className="col-span-2 flex gap-2">
-                <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">Crear</button>
-                <button type="button" onClick={() => setShowForm(false)} className="bg-gray-300 px-6 py-2 rounded hover:bg-gray-400">Cancelar</button>
+                <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Crear</button>
+                <button type="button" onClick={() => setShowJobForm(false)} className="bg-gray-300 px-6 py-2 rounded hover:bg-gray-400">Cancelar</button>
               </div>
             </form>
           </div>
         )}
 
+        {/* Property Form */}
+        {showPropertyForm && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4">Crear Propiedad</h2>
+            <form onSubmit={createProperty} className="grid grid-cols-2 gap-4">
+              <input required placeholder="Nombre propiedad" value={propertyData.name} onChange={e => setPropertyData({...propertyData, name: e.target.value})} className="border rounded p-2" />
+              <input required placeholder="Direccion" value={propertyData.address} onChange={e => setPropertyData({...propertyData, address: e.target.value})} className="border rounded p-2" />
+              <input required placeholder="Nombre del cliente/owner" value={propertyData.clientName} onChange={e => setPropertyData({...propertyData, clientName: e.target.value})} className="border rounded p-2" />
+              <input placeholder="Telefono cliente (opcional)" value={propertyData.clientPhone} onChange={e => setPropertyData({...propertyData, clientPhone: e.target.value})} className="border rounded p-2" />
+              <textarea placeholder="Notas (opcional)" value={propertyData.notes} onChange={e => setPropertyData({...propertyData, notes: e.target.value})} className="border rounded p-2 col-span-2" />
+              <div className="col-span-2 flex gap-2">
+                <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">Crear</button>
+                <button type="button" onClick={() => setShowPropertyForm(false)} className="bg-gray-300 px-6 py-2 rounded hover:bg-gray-400">Cancelar</button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Worker Form */}
+        {showWorkerForm && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4">Crear Trabajadora</h2>
+            <form onSubmit={createWorker} className="grid grid-cols-2 gap-4">
+              <input required placeholder="Nombre" value={workerData.name} onChange={e => setWorkerData({...workerData, name: e.target.value})} className="border rounded p-2" />
+              <input required placeholder="Telefono" value={workerData.phone} onChange={e => setWorkerData({...workerData, phone: e.target.value})} className="border rounded p-2" />
+              <div className="col-span-2 flex gap-2">
+                <button type="submit" className="bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700">Crear</button>
+                <button type="button" onClick={() => setShowWorkerForm(false)} className="bg-gray-300 px-6 py-2 rounded hover:bg-gray-400">Cancelar</button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow p-4 text-center">
+            <div className="text-3xl font-bold text-blue-600">{jobs.length}</div>
+            <div className="text-gray-500">Jobs</div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4 text-center">
+            <div className="text-3xl font-bold text-green-600">{properties.length}</div>
+            <div className="text-gray-500">Propiedades</div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4 text-center">
+            <div className="text-3xl font-bold text-purple-600">{workers.length}</div>
+            <div className="text-gray-500">Trabajadoras</div>
+          </div>
+        </div>
+
+        {/* Jobs List */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold mb-4">Jobs ({jobs.length})</h2>
           <div className="space-y-3">
