@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String   @unique
+  canAssign Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  assignedJobs Job[]    @relation("AssignedWorker")
+}
+
+model Client {
+  id         String     @id @default(cuid())
+  name       String
+  phone      String?
+  email      String?
+  createdAt  DateTime   @default(now())
+  
+  properties Property[]
+}
+
+model Property {
+  id        String   @id @default(cuid())
+  name      String
+  address   String
+  clientId  String
+  notes     String?
+  createdAt DateTime @default(now())
+  
+  client    Client   @relation(fields: [clientId], references: [id])
+  jobs      Job[]
+}
+
+model JobType {
+  id               String   @id @default(cuid())
+  name             String   @unique
+  checklistTemplate String
+  createdAt        DateTime @default(now())
+  
+  jobs Job[]
+}
+
+model Job {
+  id         String   @id @default(cuid())
+  propertyId String
+  workerId   String
+  jobTypeId  String
+  datetime   DateTime
+  status     String   @default("pending")
+  checklist  String
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  property Property @relation(fields: [propertyId], references: [id])
+  worker   User     @relation("AssignedWorker", fields: [workerId], references: [id])
+  jobType  JobType  @relation(fields: [jobTypeId], references: [id])
+  
+  @@index([status])
+  @@index([datetime])
+  @@index([workerId])
+}
